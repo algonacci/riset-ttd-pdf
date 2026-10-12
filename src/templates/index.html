@@ -6,47 +6,228 @@
     <title>Riset TTD PDF</title>
 
     <style>
-      body {
+      :root {
         font-family: system-ui, sans-serif;
+        color: #172332;
         background: #f3f4f6;
+      }
+
+      body {
         margin: 0;
         padding: 24px;
       }
 
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: center;
-        margin-bottom: 20px;
+      [hidden] {
+        display: none !important;
       }
 
-      button,
-      input {
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      main:not(.editing) {
+        min-height: calc(100vh - 48px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      main:not(.editing) h1,
+      main:not(.editing) .intro {
+        text-align: center;
+      }
+
+      main:not(.editing) h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        letter-spacing: -0.04em;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+      }
+
+      .intro {
+        margin: 0 0 24px;
+        color: #536273;
+      }
+
+      main:not(.editing) .intro {
+        max-width: 560px;
+        margin: 0 auto 32px;
+        line-height: 1.6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .panel {
+        background: white;
+        border: 1px solid #dce2e9;
+        border-radius: 12px;
+        padding: 20px;
+      }
+
+      .document-card {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        align-items: center;
+        gap: 20px 24px;
+        width: min(100%, 620px);
+        box-sizing: border-box;
+        margin: 0 auto;
+        padding: 32px;
+        border-color: #cdd9e5;
+        box-shadow: 0 20px 48px #17233212;
+      }
+
+      .document-icon {
+        display: grid;
+        place-items: center;
+        width: 72px;
+        height: 84px;
+        border-radius: 12px;
+        background: #eaf1fa;
+        color: #215f9d;
+      }
+
+      .document-info {
+        min-width: 0;
+      }
+
+      .document-info h2 {
+        margin: 6px 0;
+        font-size: 1.5rem;
+      }
+
+      .document-info p {
+        margin: 0;
+        color: #536273;
+      }
+
+      .document-label {
+        color: #215f9d;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .document-card #openDocument {
+        grid-column: 1 / -1;
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      #choiceStatus:not(:empty) {
+        margin-top: 10px;
+      }
+
+      .controls {
+        display: grid;
+        gap: 20px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field label {
+        font-weight: 650;
+      }
+
+      .hint, .filename {
+        margin: 0;
+        color: #536273;
+        font-size: 0.875rem;
+        overflow-wrap: anywhere;
+      }
+
+      input, select, button {
         font: inherit;
       }
 
+      input[type="file"], select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: white;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        margin: 0;
+      }
+
       button {
-        padding: 10px 16px;
+        padding: 12px 16px;
         border: 0;
         border-radius: 8px;
-        background: #111827;
+        background: #172332;
         color: white;
         cursor: pointer;
       }
 
+      button:disabled {
+        background: #a9b2bd;
+        cursor: not-allowed;
+      }
+
+      .preview-heading {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .preview-heading h2 {
+        font-size: 1.125rem;
+        margin: 0;
+      }
+
+      .preview-heading label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .preview-heading select {
+        width: auto;
+      }
+
       #workspace {
+        min-height: 320px;
         overflow: auto;
-        background: #ddd;
+        display: grid;
+        place-items: center;
+        background: #e9edf2;
+        border-radius: 8px;
         padding: 20px;
+      }
+
+      #empty {
+        text-align: center;
+        color: #536273;
       }
 
       #page {
         position: relative;
-        width: fit-content;
-        margin: auto;
         background: white;
         line-height: 0;
+        box-shadow: 0 8px 30px #17233226;
+      }
+
+      #page[hidden], #empty[hidden], #signature[hidden] {
+        display: none;
       }
 
       canvas {
@@ -55,42 +236,121 @@
 
       #signature {
         position: absolute;
-        left: 60%;
-        top: 75%;
+        left: 0;
+        top: 0;
         width: 150px;
         height: auto;
-        cursor: move;
+        cursor: pointer;
         touch-action: none;
         user-select: none;
-        border: 1px dashed #2563eb;
+        box-sizing: border-box;
+      }
+
+      #signature.selected {
+        outline: 1px dashed #2563eb;
+        cursor: move;
+      }
+
+      #resizeHandle {
+        position: absolute;
+        z-index: 1;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 3px solid white;
+        border-radius: 5px;
+        background: #2563eb;
+        box-shadow: 0 1px 5px #17233266;
+        cursor: nwse-resize;
+        touch-action: none;
       }
 
       #status {
-        margin-top: 16px;
+        margin: 14px 0 0;
+        color: #536273;
+      }
+
+      #status.error {
+        color: #b42318;
+      }
+
+      @media (max-width: 720px) {
+        body { padding: 16px; }
+        main:not(.editing) { min-height: calc(100vh - 32px); }
+        .layout { grid-template-columns: 1fr; }
+        .panel { padding: 16px; }
+        .document-card { grid-template-columns: 60px minmax(0, 1fr); gap: 16px; padding: 24px; }
+        .document-icon { width: 60px; height: 72px; }
+        #workspace { padding: 12px; min-height: 240px; }
       }
     </style>
   </head>
 
   <body>
-    <h1>Riset TTD PDF</h1>
+    <main id="app">
+      <h1>Riset TTD PDF</h1>
+      <p class="intro">Pilih dokumen yang disiapkan sistem, lalu unggah tanda tangan untuk menandatanganinya di browser.</p>
 
-    <div class="toolbar">
-      <label>
-        Ukuran TTD
-        <input id="size" type="range" min="50" max="300" value="150" />
-      </label>
+      <section id="documentChoice" class="panel document-card" aria-label="Pilih dokumen">
+        <div class="document-icon" aria-hidden="true">
+          <svg width="38" height="44" viewBox="0 0 38 44" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M7 2h17l9 9v28a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3Z" />
+            <path d="M24 2v9h9M11 20h15M11 27h15M11 34h10" />
+          </svg>
+        </div>
+        <div class="document-info">
+          <span class="document-label">Dokumen tersedia / PDF</span>
+          <h2>Surat Keterangan</h2>
+          <p>Sudah disiapkan dan siap ditandatangani.</p>
+          <p id="choiceStatus" role="status" aria-live="polite"></p>
+        </div>
+        <button id="openDocument" type="button">Buka dokumen &rarr;</button>
+      </section>
 
-      <button id="apply">Apply & Download PDF</button>
-    </div>
+      <div id="editor" class="layout" hidden>
+        <section class="panel controls" aria-label="Pengaturan tanda tangan">
+          <div class="field">
+            <strong>Dokumen siap ditandatangani</strong>
+            <p class="filename">Surat Keterangan</p>
+          </div>
 
-    <div id="workspace">
-      <div id="page">
-        <canvas id="pdfCanvas"></canvas>
-        <img id="signature" src="/static/ttd.png" alt="TTD" />
+          <div class="field">
+            <label for="image">1. Unggah gambar TTD</label>
+            <input id="image" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" />
+            <p class="hint">PNG transparan atau JPG/JPEG.</p>
+            <p id="imageName" class="filename">Belum ada gambar dipilih.</p>
+          </div>
+
+          <div class="field">
+            <label for="size">2. Atur ukuran TTD</label>
+            <input id="size" type="range" min="50" max="300" value="150" disabled />
+            <p class="hint">Tarik pojok kotak TTD untuk mengubah ukuran. Klik area kosong untuk pratinjau tanpa garis.</p>
+          </div>
+
+          <button id="apply" type="button" disabled>Unduh PDF bertanda tangan</button>
+        </section>
+
+        <section class="panel" aria-label="Pratinjau dokumen">
+          <div class="preview-heading">
+            <h2>Pratinjau</h2>
+            <label for="pageNumber">Halaman
+              <select id="pageNumber" disabled></select>
+            </label>
+          </div>
+
+          <div id="workspace">
+            <p id="empty">Memuat Surat Keterangan...</p>
+            <div id="page" hidden>
+              <canvas id="pdfCanvas"></canvas>
+              <img id="signature" alt="Pratinjau TTD; geser untuk mengubah posisi" draggable="false" hidden />
+              <button id="resizeHandle" type="button" aria-label="Tarik untuk mengubah ukuran TTD" hidden></button>
+            </div>
+          </div>
+
+          <p id="status" role="status" aria-live="polite">Memuat dokumen...</p>
+        </section>
       </div>
-    </div>
-
-    <p id="status">Memuat PDF...</p>
+    </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -100,162 +360,317 @@
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
       const { PDFDocument } = PDFLib;
-
-      const canvas = document.getElementById("pdfCanvas");
-      const ctx = canvas.getContext("2d");
+      const app = document.getElementById("app");
+      const documentChoice = document.getElementById("documentChoice");
+      const openDocument = document.getElementById("openDocument");
+      const choiceStatus = document.getElementById("choiceStatus");
+      const editor = document.getElementById("editor");
+      const imageInput = document.getElementById("image");
+      const imageName = document.getElementById("imageName");
+      const workspace = document.getElementById("workspace");
+      const empty = document.getElementById("empty");
       const pageEl = document.getElementById("page");
       const signature = document.getElementById("signature");
+      const resizeHandle = document.getElementById("resizeHandle");
       const sizeInput = document.getElementById("size");
+      const pageNumber = document.getElementById("pageNumber");
+      const applyButton = document.getElementById("apply");
       const status = document.getElementById("status");
 
       let originalPdfBytes;
-      let pdfPage;
+      let imageBytes;
+      let imageType;
+      let imageAspect;
+      let pdf;
       let viewport;
+      let imageVersion = 0;
+      let renderVersion = 0;
+      let imageUrl;
+      let processing = false;
+      let selected = false;
 
-      async function init() {
-        const response = await fetch("/static/surat.pdf");
-        originalPdfBytes = await response.arrayBuffer();
-
-        const pdf = await pdfjsLib.getDocument({
-          data: originalPdfBytes.slice(0),
-        }).promise;
-
-        pdfPage = await pdf.getPage(1);
-
-        const base = pdfPage.getViewport({ scale: 1 });
-        viewport = pdfPage.getViewport({
-          scale: Math.min(900 / base.width, 1.5),
-        });
-
-        const dpr = window.devicePixelRatio || 1;
-
-        canvas.width = Math.round(viewport.width * dpr);
-        canvas.height = Math.round(viewport.height * dpr);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-
-        pageEl.style.width = `${viewport.width}px`;
-        pageEl.style.height = `${viewport.height}px`;
-
-        await pdfPage.render({
-          canvasContext: ctx,
-          viewport,
-          transform: [dpr, 0, 0, dpr, 0, 0],
-        }).promise;
-
-        signature.style.left = `${viewport.width * 0.6}px`;
-        signature.style.top = `${viewport.height * 0.75}px`;
-
-        status.textContent = "PDF siap. Geser TTD ke posisi yang diinginkan.";
+      function setStatus(message, error = false) {
+        status.textContent = message;
+        status.classList.toggle("error", error);
       }
 
-      // Drag TTD
+      function selectSignature(value) {
+        selected = value;
+        signature.classList.toggle("selected", value);
+        resizeHandle.hidden = !value || signature.hidden || processing;
+        if (!resizeHandle.hidden) positionResizeHandle();
+        sizeInput.disabled = !value || processing || !originalPdfBytes || !imageBytes || !viewport;
+        if (imageBytes && viewport) {
+          setStatus(value
+            ? "TTD dipilih. Geser untuk mengubah posisi, tarik pojok untuk mengubah ukuran."
+            : "Pratinjau tanpa garis. Klik TTD untuk mengubah posisinya lagi.");
+        }
+      }
+
+      function positionResizeHandle() {
+        resizeHandle.style.left = `${signature.offsetLeft + signature.offsetWidth - resizeHandle.offsetWidth}px`;
+        resizeHandle.style.top = `${signature.offsetTop + signature.offsetHeight - resizeHandle.offsetHeight}px`;
+      }
+
+      function updateControls() {
+        const ready = !!(originalPdfBytes && imageBytes && viewport);
+        applyButton.disabled = !ready || processing;
+        sizeInput.disabled = !ready || processing || !selected;
+        pageNumber.disabled = !pdf || !viewport || processing;
+        imageInput.disabled = processing;
+        signature.hidden = !ready;
+        resizeHandle.hidden = !ready || !selected || processing;
+        if (ready) {
+          fitSignature();
+        }
+      }
+
+      function fitSignature() {
+        const maxWidth = Math.min(
+          pageEl.clientWidth,
+          pageEl.clientHeight * imageAspect,
+          300,
+        );
+        sizeInput.max = Math.max(1, Math.floor(maxWidth));
+        sizeInput.min = Math.min(50, Number(sizeInput.max));
+        sizeInput.value = Math.min(Number(sizeInput.value), Number(sizeInput.max));
+        signature.style.width = `${Math.min(Number(sizeInput.value), maxWidth)}px`;
+        signature.style.left = `${Math.max(0, Math.min(signature.offsetLeft, pageEl.clientWidth - signature.offsetWidth))}px`;
+        signature.style.top = `${Math.max(0, Math.min(signature.offsetTop, pageEl.clientHeight - signature.offsetHeight))}px`;
+        positionResizeHandle();
+      }
+
+      async function renderPage() {
+        const version = ++renderVersion;
+        const currentPdf = pdf;
+        viewport = undefined;
+        updateControls();
+        setStatus("Memuat halaman...");
+
+        try {
+          const pdfPage = await currentPdf.getPage(Number(pageNumber.value));
+          if (version !== renderVersion) return;
+
+          const base = pdfPage.getViewport({ scale: 1 });
+          const scale = Math.min(900 / base.width, 1.5, (workspace.clientWidth - 40) / base.width);
+          const nextViewport = pdfPage.getViewport({ scale });
+          const dpr = window.devicePixelRatio || 1;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(nextViewport.width * dpr);
+          canvas.height = Math.round(nextViewport.height * dpr);
+          canvas.style.width = `${nextViewport.width}px`;
+          canvas.style.height = `${nextViewport.height}px`;
+
+          await pdfPage.render({
+            canvasContext: canvas.getContext("2d"),
+            viewport: nextViewport,
+            transform: [dpr, 0, 0, dpr, 0, 0],
+          }).promise;
+          if (version !== renderVersion) return;
+
+          pageEl.querySelector("canvas").replaceWith(canvas);
+          pageEl.style.width = `${nextViewport.width}px`;
+          pageEl.style.height = `${nextViewport.height}px`;
+          pageEl.hidden = false;
+          empty.hidden = true;
+          viewport = nextViewport;
+          signature.style.left = `${nextViewport.width * 0.6}px`;
+          signature.style.top = `${nextViewport.height * 0.75}px`;
+          updateControls();
+          if (imageBytes) {
+            selectSignature(selected);
+          } else {
+            setStatus("Unggah gambar TTD untuk melanjutkan.");
+          }
+        } catch (err) {
+          if (version !== renderVersion) return;
+          setStatus("Gagal menampilkan halaman: " + err.message, true);
+        }
+      }
+
+      async function loadDocument() {
+        openDocument.disabled = true;
+        choiceStatus.textContent = "Memuat Surat Keterangan...";
+        try {
+          const response = await fetch("{{ url_for('static', filename='surat.pdf') }}");
+          if (!response.ok) throw new Error("Dokumen tidak tersedia");
+          const bytes = await response.arrayBuffer();
+          pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+          originalPdfBytes = bytes;
+          editor.hidden = false;
+          for (let number = 1; number <= pdf.numPages; number++) {
+            pageNumber.add(new Option(`${number} dari ${pdf.numPages}`, number));
+          }
+          await renderPage();
+          if (!viewport) throw new Error("Gagal menampilkan halaman PDF");
+          app.classList.add("editing");
+          documentChoice.hidden = true;
+        } catch (err) {
+          pdf = undefined;
+          originalPdfBytes = undefined;
+          viewport = undefined;
+          pageNumber.replaceChildren();
+          editor.hidden = true;
+          app.classList.remove("editing");
+          updateControls();
+          choiceStatus.textContent = "Gagal membuka dokumen: " + err.message + ". Coba lagi.";
+          openDocument.disabled = false;
+        }
+      }
+
+      openDocument.addEventListener("click", loadDocument);
+      pageNumber.addEventListener("change", renderPage);
+
+      imageInput.addEventListener("change", async () => {
+        const version = ++imageVersion;
+        const file = imageInput.files[0];
+        imageName.textContent = file ? file.name : "Belum ada gambar dipilih.";
+        imageBytes = undefined;
+        updateControls();
+        if (!file) {
+          setStatus("Unggah gambar TTD untuk melanjutkan.");
+          return;
+        }
+        const type = file.type || ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" }[file.name.split(".").pop().toLowerCase()]);
+        if (type !== "image/png" && type !== "image/jpeg") {
+          setStatus("Gunakan gambar PNG atau JPG/JPEG.", true);
+          return;
+        }
+
+        try {
+          const bytes = await file.arrayBuffer();
+          const url = URL.createObjectURL(file);
+          const preview = new Image();
+          preview.src = url;
+          try {
+            await preview.decode();
+          } catch (err) {
+            URL.revokeObjectURL(url);
+            throw err;
+          }
+          if (version !== imageVersion) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          if (imageUrl) URL.revokeObjectURL(imageUrl);
+          imageUrl = url;
+          signature.src = url;
+          imageBytes = bytes;
+          imageType = type;
+          imageAspect = preview.naturalWidth / preview.naturalHeight;
+          updateControls();
+          selectSignature(true);
+          if (!viewport) setStatus("Menunggu dokumen siap...");
+        } catch (err) {
+          if (version !== imageVersion) return;
+          setStatus("Gagal membaca gambar TTD: " + err.message, true);
+        }
+      });
+
       let drag = null;
+      signature.addEventListener("load", () => {
+        if (!signature.hidden) fitSignature();
+      });
+      pageEl.addEventListener("pointerdown", (e) => {
+        if (e.target !== signature && e.target !== resizeHandle && selected) selectSignature(false);
+      });
 
       signature.addEventListener("pointerdown", (e) => {
-        drag = {
-          x: e.clientX,
-          y: e.clientY,
-          left: signature.offsetLeft,
-          top: signature.offsetTop,
-        };
-
+        if (signature.hidden) return;
+        if (!selected) {
+          selectSignature(true);
+          return;
+        }
+        drag = { x: e.clientX, y: e.clientY, left: signature.offsetLeft, top: signature.offsetTop, moved: false };
         signature.setPointerCapture(e.pointerId);
         e.preventDefault();
       });
 
       signature.addEventListener("pointermove", (e) => {
         if (!drag) return;
-
-        const maxX = pageEl.clientWidth - signature.offsetWidth;
-        const maxY = pageEl.clientHeight - signature.offsetHeight;
-
-        signature.style.left = `${Math.max(
-          0,
-          Math.min(maxX, drag.left + e.clientX - drag.x),
-        )}px`;
-
-        signature.style.top = `${Math.max(
-          0,
-          Math.min(maxY, drag.top + e.clientY - drag.y),
-        )}px`;
+        if (Math.abs(e.clientX - drag.x) > 3 || Math.abs(e.clientY - drag.y) > 3) drag.moved = true;
+        if (!drag.moved) return;
+        signature.style.left = `${Math.max(0, Math.min(pageEl.clientWidth - signature.offsetWidth, drag.left + e.clientX - drag.x))}px`;
+        signature.style.top = `${Math.max(0, Math.min(pageEl.clientHeight - signature.offsetHeight, drag.top + e.clientY - drag.y))}px`;
+        positionResizeHandle();
       });
 
-      signature.addEventListener("pointerup", () => (drag = null));
+      signature.addEventListener("pointerup", () => {
+        if (drag && !drag.moved) selectSignature(false);
+        drag = null;
+      });
       signature.addEventListener("pointercancel", () => (drag = null));
+      sizeInput.addEventListener("input", fitSignature);
 
-      sizeInput.addEventListener("input", () => {
-        signature.style.width = `${sizeInput.value}px`;
-
-        signature.style.left = `${Math.min(
-          signature.offsetLeft,
-          pageEl.clientWidth - signature.offsetWidth,
-        )}px`;
-
-        signature.style.top = `${Math.min(
-          signature.offsetTop,
-          pageEl.clientHeight - signature.offsetHeight,
-        )}px`;
+      let resize = null;
+      resizeHandle.addEventListener("pointerdown", (e) => {
+        if (resizeHandle.hidden) return;
+        resize = { x: e.clientX, y: e.clientY, width: signature.offsetWidth };
+        resizeHandle.setPointerCapture(e.pointerId);
+        e.preventDefault();
       });
 
-      document.getElementById("apply").addEventListener("click", async () => {
+      resizeHandle.addEventListener("pointermove", (e) => {
+        if (!resize) return;
+        const dx = e.clientX - resize.x;
+        const dy = (e.clientY - resize.y) * imageAspect;
+        const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+        const maxWidth = Math.min(
+          300,
+          pageEl.clientWidth - signature.offsetLeft,
+          (pageEl.clientHeight - signature.offsetTop) * imageAspect,
+        );
+        const width = Math.max(Math.min(50, maxWidth), Math.min(maxWidth, resize.width + delta));
+        sizeInput.value = width;
+        signature.style.width = `${width}px`;
+        positionResizeHandle();
+      });
+
+      resizeHandle.addEventListener("pointerup", () => (resize = null));
+      resizeHandle.addEventListener("pointercancel", () => (resize = null));
+
+      applyButton.addEventListener("click", async () => {
+        if (!originalPdfBytes || !imageBytes || !viewport || processing) return;
+        processing = true;
+        updateControls();
+        setStatus("Membuat PDF di browser...");
+
         try {
-          status.textContent = "Memproses di browser...";
-
           const pdfDoc = await PDFDocument.load(originalPdfBytes);
-          const page = pdfDoc.getPage(0);
-
-          const pngBytes = await fetch("/static/ttd.png").then((r) => {
-            if (!r.ok) throw new Error("Gagal memuat TTD PNG");
-            return r.arrayBuffer();
-          });
-
-          const png = await pdfDoc.embedPng(pngBytes);
-
-          // Konversi koordinat preview ke koordinat halaman PDF.
+          const page = pdfDoc.getPage(Number(pageNumber.value) - 1);
+          const image = imageType === "image/png"
+            ? await pdfDoc.embedPng(imageBytes)
+            : await pdfDoc.embedJpg(imageBytes);
           const rect = page.getMediaBox();
-
           const scaleX = rect.width / viewport.width;
           const scaleY = rect.height / viewport.height;
+          const width = signature.clientWidth * scaleX;
+          const height = signature.clientHeight * scaleY;
 
-          const x = signature.offsetLeft * scaleX;
-          const width = signature.offsetWidth * scaleX;
-          const height = signature.offsetHeight * scaleY;
-
-          // Browser: Y dari atas. PDF: Y dari bawah.
-          const y = rect.height - signature.offsetTop * scaleY - height;
-
-          page.drawImage(png, {
-            x: rect.x + x,
-            y: rect.y + y,
+          page.drawImage(image, {
+            x: rect.x + signature.offsetLeft * scaleX,
+            y: rect.y + rect.height - signature.offsetTop * scaleY - height,
             width,
             height,
           });
 
           const output = await pdfDoc.save();
-          const blob = new Blob([output], {
-            type: "application/pdf",
-          });
-
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-
-          a.href = url;
-          a.download = "signed.pdf";
-          a.click();
-
+          const url = URL.createObjectURL(new Blob([output], { type: "application/pdf" }));
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "surat-signed.pdf";
+          link.click();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-          status.textContent = "Selesai! PDF berhasil dibuat di browser.";
+          setStatus("Selesai! PDF bertanda tangan berhasil diunduh.");
         } catch (err) {
-          status.textContent = "Error: " + err.message;
+          setStatus("Gagal membuat PDF: " + err.message, true);
           console.error(err);
+        } finally {
+          processing = false;
+          updateControls();
         }
       });
 
-      init().catch((err) => {
-        status.textContent = "Gagal memuat PDF: " + err.message;
-      });
     </script>
   </body>
 </html>
