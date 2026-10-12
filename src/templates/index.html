@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Riset TTD PDF</title>
+
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #f3f4f6;
+        margin: 0;
+        padding: 24px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        padding: 10px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #111827;
+        color: white;
+        cursor: pointer;
+      }
+
+      #workspace {
+        overflow: auto;
+        background: #ddd;
+        padding: 20px;
+      }
+
+      #page {
+        position: relative;
+        width: fit-content;
+        margin: auto;
+        background: white;
+        line-height: 0;
+      }
+
+      canvas {
+        display: block;
+      }
+
+      #signature {
+        position: absolute;
+        left: 60%;
+        top: 75%;
+        width: 150px;
+        height: auto;
+        cursor: move;
+        touch-action: none;
+        user-select: none;
+        border: 1px dashed #2563eb;
+      }
+
+      #status {
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Riset TTD PDF</h1>
+
+    <div class="toolbar">
+      <label>
+        Ukuran TTD
+        <input id="size" type="range" min="50" max="300" value="150" />
+      </label>
+
+      <button id="apply">Apply & Download PDF</button>
+    </div>
+
+    <div id="workspace">
+      <div id="page">
+        <canvas id="pdfCanvas"></canvas>
+        <img id="signature" src="/static/ttd.png" alt="TTD" />
+      </div>
+    </div>
+
+    <p id="status">Memuat PDF...</p>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+      const { PDFDocument } = PDFLib;
+
+      const canvas = document.getElementById("pdfCanvas");
+      const ctx = canvas.getContext("2d");
+      const pageEl = document.getElementById("page");
+      const signature = document.getElementById("signature");
+      const sizeInput = document.getElementById("size");
+      const status = document.getElementById("status");
+
+      let originalPdfBytes;
+      let pdfPage;
+      let viewport;
+
+      async function init() {
+        const response = await fetch("/static/surat.pdf");
+        originalPdfBytes = await response.arrayBuffer();
+
+        const pdf = await pdfjsLib.getDocument({
+          data: originalPdfBytes.slice(0),
+        }).promise;
+
+        pdfPage = await pdf.getPage(1);
+
+        const base = pdfPage.getViewport({ scale: 1 });
+        viewport = pdfPage.getViewport({
+          scale: Math.min(900 / base.width, 1.5),
+        });
+
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = Math.round(viewport.width * dpr);
+        canvas.height = Math.round(viewport.height * dpr);
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+
+        pageEl.style.width = `${viewport.width}px`;
+        pageEl.style.height = `${viewport.height}px`;
+
+        await pdfPage.render({
+          canvasContext: ctx,
+          viewport,
+          transform: [dpr, 0, 0, dpr, 0, 0],
+        }).promise;
+
+        signature.style.left = `${viewport.width * 0.6}px`;
+        signature.style.top = `${viewport.height * 0.75}px`;
+
+        status.textContent = "PDF siap. Geser TTD ke posisi yang diinginkan.";
+      }
+
+      // Drag TTD
+      let drag = null;
+
+      signature.addEventListener("pointerdown", (e) => {
+        drag = {
+          x: e.clientX,
+          y: e.clientY,
+          left: signature.offsetLeft,
+          top: signature.offsetTop,
+        };
+
+        signature.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+
+      signature.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+
+        const maxX = pageEl.clientWidth - signature.offsetWidth;
+        const maxY = pageEl.clientHeight - signature.offsetHeight;
+
+        signature.style.left = `${Math.max(
+          0,
+          Math.min(maxX, drag.left + e.clientX - drag.x),
+        )}px`;
+
+        signature.style.top = `${Math.max(
+          0,
+          Math.min(maxY, drag.top + e.clientY - drag.y),
+        )}px`;
+      });
+
+      signature.addEventListener("pointerup", () => (drag = null));
+      signature.addEventListener("pointercancel", () => (drag = null));
+
+      sizeInput.addEventListener("input", () => {
+        signature.style.width = `${sizeInput.value}px`;
+
+        signature.style.left = `${Math.min(
+          signature.offsetLeft,
+          pageEl.clientWidth - signature.offsetWidth,
+        )}px`;
+
+        signature.style.top = `${Math.min(
+          signature.offsetTop,
+          pageEl.clientHeight - signature.offsetHeight,
+        )}px`;
+      });
+
+      document.getElementById("apply").addEventListener("click", async () => {
+        try {
+          status.textContent = "Memproses di browser...";
+
+          const pdfDoc = await PDFDocument.load(originalPdfBytes);
+          const page = pdfDoc.getPage(0);
+
+          const pngBytes = await fetch("/static/ttd.png").then((r) => {
+            if (!r.ok) throw new Error("Gagal memuat TTD PNG");
+            return r.arrayBuffer();
+          });
+
+          const png = await pdfDoc.embedPng(pngBytes);
+
+          // Konversi koordinat preview ke koordinat halaman PDF.
+          const rect = page.getMediaBox();
+
+          const scaleX = rect.width / viewport.width;
+          const scaleY = rect.height / viewport.height;
+
+          const x = signature.offsetLeft * scaleX;
+          const width = signature.offsetWidth * scaleX;
+          const height = signature.offsetHeight * scaleY;
+
+          // Browser: Y dari atas. PDF: Y dari bawah.
+          const y = rect.height - signature.offsetTop * scaleY - height;
+
+          page.drawImage(png, {
+            x: rect.x + x,
+            y: rect.y + y,
+            width,
+            height,
+          });
+
+          const output = await pdfDoc.save();
+          const blob = new Blob([output], {
+            type: "application/pdf",
+          });
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+
+          a.href = url;
+          a.download = "signed.pdf";
+          a.click();
+
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+          status.textContent = "Selesai! PDF berhasil dibuat di browser.";
+        } catch (err) {
+          status.textContent = "Error: " + err.message;
+          console.error(err);
+        }
+      });
+
+      init().catch((err) => {
+        status.textContent = "Gagal memuat PDF: " + err.message;
+      });
+    </script>
+  </body>
+</html>
